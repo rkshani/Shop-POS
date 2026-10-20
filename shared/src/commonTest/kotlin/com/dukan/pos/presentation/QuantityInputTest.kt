@@ -5,6 +5,7 @@ import com.dukan.pos.domain.model.ProductUnit
 import com.dukan.pos.presentation.common.QuantityInputMode.AMOUNT
 import com.dukan.pos.presentation.common.QuantityInputMode.QUANTITY
 import com.dukan.pos.presentation.common.QuantityInputResult
+import com.dukan.pos.presentation.common.initialQuantityText
 import com.dukan.pos.presentation.common.resolveQuantityInput
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -44,6 +45,26 @@ class QuantityInputTest {
                 assertEquals(Money.fromRupees(rupees), price * qty, "Rs $rupees at ${price.format()}")
             }
         }
+    }
+
+    @Test
+    fun reopeningAnAmountLineAndConfirmingKeepsTheAmount() {
+        val qty = (resolveQuantityInput("50", AMOUNT, ProductUnit.KILOGRAM, cheeniPerKg)
+            as QuantityInputResult.Valid).qty
+        val prefilled = initialQuantityText(qty)
+
+        val reconfirmed = resolveQuantityInput(prefilled, QUANTITY, ProductUnit.KILOGRAM, cheeniPerKg, initialQty = qty)
+
+        assertEquals(QuantityInputResult.Valid(qty), reconfirmed)
+        assertEquals(Money.fromRupees(50L), cheeniPerKg * qty)
+    }
+
+    @Test
+    fun editedTextIsReadAgainEvenWithAnInitialQty() {
+        assertEquals(
+            QuantityInputResult.Valid(0.25),
+            resolveQuantityInput("0.25", QUANTITY, ProductUnit.KILOGRAM, cheeniPerKg, initialQty = 0.17857142857142858),
+        )
     }
 
     @Test

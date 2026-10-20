@@ -60,14 +60,14 @@ fun QuantityDialog(
 
     var mode by remember { mutableStateOf(QuantityInputMode.QUANTITY) }
     var input by remember {
-        val text = if (initialQty > 0.0) initialQty.formatQty(maxDecimals = 4) else ""
+        val text = initialQuantityText(initialQty)
         // Pre-selected, so typing replaces the old quantity instead of appending to it.
         mutableStateOf(TextFieldValue(text, selection = TextRange(0, text.length)))
     }
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
-    val result = resolveQuantityInput(input.text, mode, unit, unitPrice, maxQty)
+    val result = resolveQuantityInput(input.text, mode, unit, unitPrice, maxQty, initialQty)
     val confirm = { (result as? QuantityInputResult.Valid)?.let { onConfirm(it.qty) } }
 
     AlertDialog(

@@ -1,6 +1,7 @@
 package com.dukan.pos.presentation.common
 
 import com.dukan.pos.core.common.Money
+import com.dukan.pos.core.common.formatQty
 import com.dukan.pos.core.common.toQtyOrNull
 import com.dukan.pos.domain.model.ProductUnit
 import kotlin.math.abs
@@ -17,13 +18,21 @@ sealed interface QuantityInputResult {
 }
 
 /** Typed quantities keep four decimals: enough for grams, without 0.1 + 0.2 noise. */
+private const val QTY_DECIMALS = 4
 private const val QTY_SCALE = 10_000.0
 private const val EPSILON = 0.00005
+
+/** What the dialog pre-fills for an existing quantity. */
+fun initialQuantityText(qty: Double): String = if (qty > 0.0) qty.formatQty(maxDecimals = QTY_DECIMALS) else ""
 
 /**
  * Turns what was typed into a quantity, or says why it can't. [unitPrice] is
  * only needed for [QuantityInputMode.AMOUNT]; [maxQty] caps it (e.g. what is
  * still returnable on an invoice).
+ *
+ * [initialQty] is the line's current quantity: confirming its pre-filled text
+ * untouched keeps it exactly. An amount-mode 0.17857… kg shows as 0.1786, and
+ * re-reading that would turn Rs 50 into Rs 50.01.
  */
 fun resolveQuantityInput(
     text: String,
@@ -31,7 +40,11 @@ fun resolveQuantityInput(
     unit: ProductUnit,
     unitPrice: Money,
     maxQty: Double? = null,
+    initialQty: Double = 0.0,
 ): QuantityInputResult {
+    if (mode == QuantityInputMode.QUANTITY && initialQty > 0.0 && text == initialQuantityText(initialQty)) {
+        return QuantityInputResult.Valid(initialQty)
+    }
     val number = text.toQtyOrNull() ?: return QuantityInputResult.Invalid
     if (number <= 0.0) return QuantityInputResult.Invalid
 
