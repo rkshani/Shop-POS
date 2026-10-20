@@ -1,11 +1,18 @@
 package com.dukan.pos.data.repository
 
 import com.dukan.pos.data.local.dao.DatabaseSnapshot
+import com.dukan.pos.data.local.entity.ShopSettingsEntity
+import com.dukan.pos.data.mapper.toEntity
+import com.dukan.pos.domain.model.ShopSettings
 
 /** Validate an untrusted backup before entering the destructive replace transaction. */
 internal fun validateRestoreSnapshot(s: DatabaseSnapshot) {
     require(s.formatVersion == 1) { "Unsupported backup version" }
-    require(s.settings.size == 1 && s.settings.single().id == 1) { "Backup requires exactly one valid shop settings row" }
+    // Empty is fine: a shop that never opened Settings has no row yet, and
+    // restore fills in defaults (see withDefaultSettings).
+    require(s.settings.size <= 1 && s.settings.all { it.id == ShopSettingsEntity.SINGLETON_ID }) {
+        "Backup has more than one or an invalid shop settings row"
+    }
     fun <T> idsUnique(ids: List<T>): Boolean = ids.size == ids.toSet().size
     require(idsUnique(s.categories.map { it.id }) && idsUnique(s.products.map { it.id }) &&
         idsUnique(s.customers.map { it.id }) && idsUnique(s.suppliers.map { it.id }) &&
@@ -76,3 +83,10 @@ internal fun validateRestoreSnapshot(s: DatabaseSnapshot) {
         "Backup violates a unique index"
     }
 }
+
+/**
+ * The settings row is only written the first time a setting changes, so a
+ * fresh shop's database has none. Backups and restores always carry one.
+ */
+internal fun DatabaseSnapshot.withDefaultSettings(): DatabaseSnapshot =
+    if (settings.isEmpty()) copy(settings = listOf(ShopSettings().toEntity())) else this

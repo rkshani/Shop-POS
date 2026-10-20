@@ -99,7 +99,6 @@ class SettingsViewModel(
             val ok = runCatching { block() }.getOrDefault(false)
             _job.value = BackupJob.NONE
             if (ok) {
-                repository.update(repository.get())
                 _effects.send(SettingsEffect.ExportDone)
             } else {
                 _effects.send(SettingsEffect.ExportFailed)

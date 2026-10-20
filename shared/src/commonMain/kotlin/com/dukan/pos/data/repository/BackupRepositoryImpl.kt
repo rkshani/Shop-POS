@@ -25,13 +25,13 @@ class BackupRepositoryImpl(
     }
 
     override suspend fun exportJson(): String = withContext(dispatchers.io) {
-        json.encodeToString(DatabaseSnapshot.serializer(), dao.snapshot())
+        json.encodeToString(DatabaseSnapshot.serializer(), dao.snapshot().withDefaultSettings())
     }
 
     override suspend fun restoreJson(content: String) = withContext(dispatchers.io) {
         val snapshot = json.decodeFromString(DatabaseSnapshot.serializer(), content)
         validateRestoreSnapshot(snapshot)
-        dao.replaceAll(snapshot)
+        dao.replaceAll(snapshot.withDefaultSettings())
     }
 
     override suspend fun exportProductsCsv(): String = withContext(dispatchers.io) {

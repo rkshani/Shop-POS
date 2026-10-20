@@ -16,7 +16,12 @@ interface ProductRepository {
     suspend fun findById(id: Long): Product?
     suspend fun isBarcodeTaken(barcode: String, excludingId: Long?): Boolean
 
-    suspend fun upsert(product: Product): Long
+    /**
+     * Creates or edits [product]'s catalogue fields. Its `stockQty` is ignored:
+     * when [stockTarget] is non-null, stock is counted to that value through a
+     * movement in the same transaction; null leaves stock untouched.
+     */
+    suspend fun save(product: Product, stockTarget: Double?, note: String?): Long
     suspend fun setActive(id: Long, active: Boolean)
     suspend fun upsertCategory(category: Category): Long
 

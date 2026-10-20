@@ -3,7 +3,6 @@ package com.dukan.pos.data.repository
 import com.dukan.pos.core.common.AppDispatchers
 import com.dukan.pos.core.common.Clock
 import com.dukan.pos.data.local.dao.ProductDao
-import com.dukan.pos.data.local.entity.StockMovementEntity
 import com.dukan.pos.data.mapper.toDomain
 import com.dukan.pos.data.mapper.toEntity
 import com.dukan.pos.domain.model.Category
@@ -47,11 +46,15 @@ class ProductRepositoryImpl(
     override suspend fun isBarcodeTaken(barcode: String, excludingId: Long?): Boolean =
         withContext(dispatchers.io) { dao.countWithBarcode(barcode, excludingId) > 0 }
 
-    override suspend fun upsert(product: Product): Long = withContext(dispatchers.io) {
-        val rowId = dao.upsert(product.toEntity())
-        // Upsert returns -1 for an update; fall back to the id we already had.
-        if (rowId > 0) rowId else product.id
-    }
+    override suspend fun save(product: Product, stockTarget: Double?, note: String?): Long =
+        withContext(dispatchers.io) {
+            dao.saveProduct(
+                product = product.toEntity(),
+                stockTarget = stockTarget,
+                note = note,
+                nowMillis = clock.now().toEpochMilliseconds(),
+            )
+        }
 
     override suspend fun setActive(id: Long, active: Boolean) = withContext(dispatchers.io) {
         dao.setActive(id, active, clock.now().toEpochMilliseconds())
@@ -68,18 +71,12 @@ class ProductRepositoryImpl(
         type: StockMovementType,
         note: String?,
     ) = withContext(dispatchers.io) {
-        val now = clock.now().toEpochMilliseconds()
-        dao.applyStockDelta(productId, qtyChange, now)
-        val after = dao.currentStock(productId) ?: 0.0
-        dao.insertMovement(
-            StockMovementEntity(
-                productId = productId,
-                type = type.name,
-                qtyChange = qtyChange,
-                qtyAfter = after,
-                note = note,
-                createdAtMillis = now,
-            ),
+        dao.adjustStock(
+            productId = productId,
+            delta = qtyChange,
+            type = type.name,
+            note = note,
+            nowMillis = clock.now().toEpochMilliseconds(),
         )
     }
 

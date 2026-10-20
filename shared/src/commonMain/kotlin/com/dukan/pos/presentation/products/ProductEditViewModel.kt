@@ -59,10 +59,14 @@ class ProductEditViewModel(
     private val _effects = Channel<ProductEditEffect>(Channel.BUFFERED)
     val effects = _effects.receiveAsFlow()
 
+    /** Stock as loaded; only a changed value is written back as a stock count. */
+    private var loadedStockText: String? = null
+
     init {
         if (productId != 0L) {
             viewModelScope.launch {
                 repository.findById(productId)?.let { product ->
+                    loadedStockText = product.stockQty.toString().removeSuffix(".0")
                     _state.value = ProductFormState(
                         id = product.id,
                         name = product.name,
@@ -71,7 +75,7 @@ class ProductEditViewModel(
                         unit = product.unit,
                         costText = product.costPrice.rupees.trimZero(),
                         priceText = product.salePrice.rupees.trimZero(),
-                        stockText = product.stockQty.toString().removeSuffix(".0"),
+                        stockText = loadedStockText.orEmpty(),
                         lowStockText = product.lowStockAt.toString().removeSuffix(".0"),
                     )
                 }
@@ -108,7 +112,8 @@ class ProductEditViewModel(
                 lowStockAt = form.lowStockText.toQtyOrNull() ?: 0.0,
                 updatedAt = clock.now(),
             )
-            when (val result = saveProduct(product)) {
+            val stockEdited = form.id == 0L || form.stockText.trim() != loadedStockText
+            when (val result = saveProduct(product, updateStock = stockEdited)) {
                 is AppResult.Success -> {
                     _state.update { it.copy(isSaving = false) }
                     _effects.send(ProductEditEffect.Saved)
