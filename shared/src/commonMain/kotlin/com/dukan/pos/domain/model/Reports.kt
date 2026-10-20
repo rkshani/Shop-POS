@@ -7,7 +7,12 @@ data class SalesSummary(
     val salesCount: Int = 0,
     val grossSales: Money = Money.ZERO,
     val discountGiven: Money = Money.ZERO,
+    /** Net change in the cash drawer: cash taken + khata recovered − cash refunds. */
     val cashCollected: Money = Money.ZERO,
+    /** Paid via Easypaisa / JazzCash / Bank / Card; never part of [cashCollected]. */
+    val digitalCollected: Money = Money.ZERO,
+    /** Khata payments received in the range; already included in [cashCollected]. */
+    val khataCollected: Money = Money.ZERO,
     val udhaarAdded: Money = Money.ZERO,
     val profit: Money = Money.ZERO,
     val returnedAmount: Money = Money.ZERO,

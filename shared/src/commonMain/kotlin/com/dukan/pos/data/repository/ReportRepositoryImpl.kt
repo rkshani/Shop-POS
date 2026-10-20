@@ -62,23 +62,26 @@ class ReportRepositoryImpl(
         return combine(
             reportDao.observeSummary(start, end),
             reportDao.observeGrossProfit(start, end),
-            reportDao.observeCashCollected(start, end),
             reportDao.observeUdhaarAdded(start, end),
-            combine(
-                reportDao.observeReturnedAmount(start, end),
-                reportDao.observeReturnedProfit(start, end),
-            ) { amount, profit -> amount to profit },
-        ) { row, grossProfit, cash, udhaar, (returnedAmount, returnedProfit) ->
+            reportDao.observeMoneyFlow(start, end),
+        ) { row, grossProfit, udhaar, money ->
             // Returns are netted off here rather than in a separate figure:
             // a shopkeeper asking "aaj kitna hua" means after returns.
+            // The refund already carries its share of any invoice discount, so
+            // returned profit is refund minus cost, not list price minus cost.
+            val returnedProfit = money.returnedPaisa - money.returnedCostPaisa
             SalesSummary(
                 salesCount = row.salesCount,
-                grossSales = Money(row.grossPaisa - returnedAmount),
+                grossSales = Money(row.grossPaisa - money.returnedPaisa),
                 discountGiven = Money(row.discountPaisa),
-                cashCollected = Money(cash - returnedAmount),
+                cashCollected = Money(
+                    money.cashSalesPaisa + money.khataCollectedPaisa - money.cashRefundedPaisa,
+                ),
+                digitalCollected = Money(money.digitalPaisa),
+                khataCollected = Money(money.khataCollectedPaisa),
                 udhaarAdded = Money(udhaar),
                 profit = Money(grossProfit - row.discountPaisa - returnedProfit),
-                returnedAmount = Money(returnedAmount),
+                returnedAmount = Money(money.returnedPaisa),
             )
         }.flowOn(dispatchers.io)
     }

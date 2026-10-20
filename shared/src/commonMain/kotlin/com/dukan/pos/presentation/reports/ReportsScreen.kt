@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.dukan.pos.core.common.Money
 import com.dukan.pos.core.common.formatQty
 import com.dukan.pos.core.designsystem.EmptyState
 import com.dukan.pos.core.designsystem.LocalSpacing
@@ -120,6 +121,14 @@ fun ReportsScreen(
                 }
             }
 
+            if (summary.digitalCollected.isPositive) {
+                item { SummaryLine(strings.digitalPayments, summary.digitalCollected) }
+            }
+
+            if (summary.khataCollected.isPositive) {
+                item { SummaryLine(strings.udhaarRecovered, summary.khataCollected) }
+            }
+
             if (summary.returnedAmount.isPositive) {
                 item {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -168,6 +177,14 @@ fun ReportsScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SummaryLine(label: String, amount: Money) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, style = MaterialTheme.typography.bodyMedium)
+        MoneyText(amount, style = MoneyStyles.medium)
     }
 }
 

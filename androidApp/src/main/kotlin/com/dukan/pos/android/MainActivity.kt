@@ -1,6 +1,5 @@
 package com.dukan.pos.android
 
-import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -11,22 +10,16 @@ import com.dukan.pos.core.platform.AndroidFileBridge
 
 class MainActivity : ComponentActivity() {
 
-    private var pendingCreate: ((Uri?) -> Unit)? = null
-    private var pendingOpen: ((Uri?) -> Unit)? = null
-
+    // Results go to the bridge, which outlives this Activity across rotation.
     private val createDocument = registerForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream"),
-    ) { uri ->
-        pendingCreate?.invoke(uri)
-        pendingCreate = null
-    }
+        AndroidFileBridge::deliverCreateResult,
+    )
 
     private val openDocument = registerForActivityResult(
         ActivityResultContracts.OpenDocument(),
-    ) { uri ->
-        pendingOpen?.invoke(uri)
-        pendingOpen = null
-    }
+        AndroidFileBridge::deliverOpenResult,
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -34,12 +27,8 @@ class MainActivity : ComponentActivity() {
 
         // Backup needs the Storage Access Framework, which needs an Activity.
         // The bridge keeps that dependency out of the shared module.
-        AndroidFileBridge.createDocument = { fileName, _, onResult ->
-            pendingCreate = onResult
-            createDocument.launch(fileName)
-        }
-        AndroidFileBridge.openDocument = { onResult ->
-            pendingOpen = onResult
+        AndroidFileBridge.createDocument = { fileName, _ -> createDocument.launch(fileName) }
+        AndroidFileBridge.openDocument = {
             openDocument.launch(arrayOf("application/json", "text/plain", "*/*"))
         }
 
@@ -47,7 +36,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        AndroidFileBridge.clear()
+        AndroidFileBridge.detach(isChangingConfigurations)
         super.onDestroy()
     }
 }

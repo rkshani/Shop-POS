@@ -28,6 +28,15 @@ data class SummaryRow(
     val paidPaisa: Long,
 )
 
+data class MoneyFlowRow(
+    val cashSalesPaisa: Long,
+    val digitalPaisa: Long,
+    val khataCollectedPaisa: Long,
+    val returnedPaisa: Long,
+    val cashRefundedPaisa: Long,
+    val returnedCostPaisa: Long,
+)
+
 data class DailyRow(
     val dayEpoch: Long,
     val salesPaisa: Long,

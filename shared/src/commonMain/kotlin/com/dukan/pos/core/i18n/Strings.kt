@@ -149,6 +149,8 @@ data class Strings(
     val rangeMonth: String = "30 days",
     val netSales: String = "Net sales",
     val returnedInRange: String = "Returned",
+    val digitalPayments: String = "Easypaisa / JazzCash / Bank / Card",
+    val udhaarRecovered: String = "Udhaar recovered (in cash)",
 
     // Settings / backup
     val shopSection: String = "Shop",
@@ -312,6 +314,8 @@ data class Strings(
             rangeMonth = "۳۰ دن",
             netSales = "خالص سیل",
             returnedInRange = "واپس",
+            digitalPayments = "ایزی پیسہ / جاز کیش / بینک / کارڈ",
+            udhaarRecovered = "ادھار وصولی (نقد میں شامل)",
 
             shopSection = "دکان",
             shopName = "دکان کا نام",

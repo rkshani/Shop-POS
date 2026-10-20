@@ -3,6 +3,7 @@ package com.dukan.pos.data.local.dao
 import androidx.room.Dao
 import androidx.room.Query
 import com.dukan.pos.data.local.entity.DailyRow
+import com.dukan.pos.data.local.entity.MoneyFlowRow
 import com.dukan.pos.data.local.entity.SummaryRow
 import com.dukan.pos.data.local.entity.TopProductRow
 import kotlinx.coroutines.flow.Flow
@@ -74,15 +75,6 @@ interface ReportDao {
 
     @Query(
         """
-        SELECT CAST(COALESCE(SUM(paidPaisa), 0) AS INTEGER)
-        FROM sales
-        WHERE createdAtMillis >= :from AND createdAtMillis < :until
-        """,
-    )
-    fun observeCashCollected(from: Long, until: Long): Flow<Long>
-
-    @Query(
-        """
         SELECT CAST(COALESCE(SUM(totalPaisa - paidPaisa), 0) AS INTEGER)
         FROM sales
         WHERE createdAtMillis >= :from AND createdAtMillis < :until AND totalPaisa > paidPaisa
@@ -90,26 +82,39 @@ interface ReportDao {
     )
     fun observeUdhaarAdded(from: Long, until: Long): Flow<Long>
 
-    // ---- Returns are money leaving again; every figure above is gross of them ----
-
+    /**
+     * Where the money went, in one read so the figures can never disagree.
+     *
+     * - Cash: what was paid at the counter on CASH and UDHAAR sales (a part
+     *   payment on an udhaar sale is handed over in cash), plus khata payments
+     *   received, minus CASH refunds. KHATA refunds never touch the drawer.
+     * - Digital: what was paid on Easypaisa / JazzCash / Bank / Card sales.
+     * - Returned cost: the cost snapshot of returned items, so returned profit
+     *   is the refund actually given minus that cost — a discounted invoice's
+     *   discount is not taken off profit a second time.
+     */
     @Query(
         """
-        SELECT CAST(COALESCE(SUM(refundPaisa), 0) AS INTEGER)
-        FROM sale_returns
-        WHERE createdAtMillis >= :from AND createdAtMillis < :until
+        SELECT
+            (SELECT CAST(COALESCE(SUM(paidPaisa), 0) AS INTEGER) FROM sales
+             WHERE createdAtMillis >= :from AND createdAtMillis < :until
+               AND paymentMethod IN ('CASH', 'UDHAAR')) AS cashSalesPaisa,
+            (SELECT CAST(COALESCE(SUM(paidPaisa), 0) AS INTEGER) FROM sales
+             WHERE createdAtMillis >= :from AND createdAtMillis < :until
+               AND paymentMethod NOT IN ('CASH', 'UDHAAR')) AS digitalPaisa,
+            (SELECT CAST(COALESCE(-SUM(amountPaisa), 0) AS INTEGER) FROM ledger_entries
+             WHERE createdAtMillis >= :from AND createdAtMillis < :until
+               AND type = 'PAYMENT') AS khataCollectedPaisa,
+            (SELECT CAST(COALESCE(SUM(refundPaisa), 0) AS INTEGER) FROM sale_returns
+             WHERE createdAtMillis >= :from AND createdAtMillis < :until) AS returnedPaisa,
+            (SELECT CAST(COALESCE(SUM(refundPaisa), 0) AS INTEGER) FROM sale_returns
+             WHERE createdAtMillis >= :from AND createdAtMillis < :until
+               AND refundMethod = 'CASH') AS cashRefundedPaisa,
+            (SELECT CAST(COALESCE(SUM(i.unitCostPaisa * i.qty), 0) AS INTEGER)
+             FROM sale_return_items i
+             INNER JOIN sale_returns r ON r.id = i.returnId
+             WHERE r.createdAtMillis >= :from AND r.createdAtMillis < :until) AS returnedCostPaisa
         """,
     )
-    fun observeReturnedAmount(from: Long, until: Long): Flow<Long>
-
-    @Query(
-        """
-        SELECT CAST(COALESCE(SUM(
-                   (i.unitPricePaisa - i.unitCostPaisa) * i.qty
-               ), 0) AS INTEGER)
-        FROM sale_return_items i
-        INNER JOIN sale_returns r ON r.id = i.returnId
-        WHERE r.createdAtMillis >= :from AND r.createdAtMillis < :until
-        """,
-    )
-    fun observeReturnedProfit(from: Long, until: Long): Flow<Long>
+    fun observeMoneyFlow(from: Long, until: Long): Flow<MoneyFlowRow>
 }
