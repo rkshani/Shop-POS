@@ -1,0 +1,21 @@
+*.iml
+.gradle
+.kotlin
+/local.properties
+/.idea
+.DS_Store
+build/
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+xcuserdata/
+*.xcworkspace/xcuserdata/
+
+# JVM crash dumps
+hs_err_pid*.log
+replay_pid*.log
+
+# Build artifacts
+*.apk
+*.aab
