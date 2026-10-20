@@ -31,7 +31,9 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -50,6 +52,7 @@ import com.dukan.pos.core.i18n.fmt
 import com.dukan.pos.domain.model.RefundMethod
 import com.dukan.pos.domain.model.SaleItem
 import com.dukan.pos.domain.model.returnableQty
+import com.dukan.pos.presentation.common.QuantityDialog
 import com.dukan.pos.presentation.common.localized
 import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.viewmodel.koinViewModel
@@ -82,6 +85,22 @@ fun SaleDetailScreen(
     val current = sale
     val anythingReturnable = current?.items?.any { it.returnableQty > 0 } == true
 
+    var returnQtyFor by remember { mutableStateOf<Long?>(null) }
+    current?.items?.firstOrNull { it.id == returnQtyFor && draft.isOpen }?.let { item ->
+        QuantityDialog(
+            title = item.productName,
+            unit = item.unit,
+            unitPrice = item.unitPrice,
+            initialQty = draft.quantities[item.id] ?: 0.0,
+            maxQty = item.returnableQty,
+            onConfirm = { qty ->
+                viewModel.onQtyChange(item.id, qty)
+                returnQtyFor = null
+            },
+            onDismiss = { returnQtyFor = null },
+        )
+    }
+
     if (draft.isOpen && current != null) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(onDismissRequest = viewModel::closeReturn, sheetState = sheetState) {
@@ -109,6 +128,7 @@ fun SaleDetailScreen(
                             unitLabel = item.unit.shortLabel,
                             onDecrease = { viewModel.onQtyChange(item.id, qty - 1) },
                             onIncrease = { viewModel.onQtyChange(item.id, qty + 1) },
+                            onQtyClick = { returnQtyFor = item.id },
                         )
                     }
                 }

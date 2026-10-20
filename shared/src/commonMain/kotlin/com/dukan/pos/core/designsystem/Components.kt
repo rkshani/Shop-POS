@@ -2,6 +2,7 @@ package com.dukan.pos.core.designsystem
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -122,7 +123,10 @@ fun QtyStepper(
     onIncrease: () -> Unit,
     modifier: Modifier = Modifier,
     unitLabel: String = "",
+    /** Tapping the number opens typed entry — the only way to sell 0.25 kg or 48 cartons quickly. */
+    onQtyClick: (() -> Unit)? = null,
 ) {
+    val strings = LocalStrings.current
     Row(
         modifier = modifier
             .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
@@ -130,7 +134,7 @@ fun QtyStepper(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onDecrease, modifier = Modifier.size(36.dp)) {
-            Icon(Icons.Rounded.Remove, contentDescription = "Reduce quantity")
+            Icon(Icons.Rounded.Remove, contentDescription = strings.reduceQty)
         }
         Text(
             text = buildString {
@@ -142,10 +146,19 @@ fun QtyStepper(
             },
             style = MoneyStyles.small,
             textAlign = TextAlign.Center,
-            modifier = Modifier.widthIn(min = 48.dp),
+            modifier = Modifier
+                .widthIn(min = 48.dp)
+                .then(
+                    if (onQtyClick != null) {
+                        Modifier.clickable(onClickLabel = strings.enterQuantity, onClick = onQtyClick)
+                    } else {
+                        Modifier
+                    },
+                )
+                .padding(vertical = 8.dp),
         )
         IconButton(onClick = onIncrease, modifier = Modifier.size(36.dp)) {
-            Icon(Icons.Rounded.Add, contentDescription = "Increase quantity")
+            Icon(Icons.Rounded.Add, contentDescription = strings.increaseQty)
         }
     }
 }

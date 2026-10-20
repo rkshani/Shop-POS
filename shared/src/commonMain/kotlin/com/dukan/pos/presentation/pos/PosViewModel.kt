@@ -85,6 +85,11 @@ class PosViewModel(
 
     fun onQtyChange(productId: Long, qty: Double) = updateCart { it.setQty(productId, qty) }
 
+    /** Typed quantity: sets the line if the product is already in the cart, adds it otherwise. */
+    fun onQtyEntered(product: Product, qty: Double) = updateCart { cart ->
+        if (cart.findLine(product.id) == null) cart.upsert(product, qtyDelta = qty) else cart.setQty(product.id, qty)
+    }
+
     fun onUnitPriceChange(productId: Long, price: Money) = updateCart { it.setUnitPrice(productId, price) }
 
     fun onRemoveLine(productId: Long) = updateCart { it.removeLine(productId) }

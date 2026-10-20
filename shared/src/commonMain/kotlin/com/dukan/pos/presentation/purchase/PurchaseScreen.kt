@@ -35,7 +35,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -51,6 +53,7 @@ import com.dukan.pos.core.designsystem.MoneyStyles
 import com.dukan.pos.core.designsystem.MoneyText
 import com.dukan.pos.core.designsystem.Pill
 import com.dukan.pos.core.designsystem.QtyStepper
+import com.dukan.pos.presentation.common.QuantityDialog
 import com.dukan.pos.presentation.common.localized
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -78,6 +81,21 @@ fun PurchaseScreen(
                     snackbarHostState.showSnackbar(effect.error.localized(strings))
             }
         }
+    }
+
+    var qtyEntryFor by remember { mutableStateOf<Long?>(null) }
+    state.lines.firstOrNull { it.product.id == qtyEntryFor }?.let { line ->
+        QuantityDialog(
+            title = line.product.name,
+            unit = line.product.unit,
+            unitPrice = line.unitCost,
+            initialQty = line.qty,
+            onConfirm = { qty ->
+                viewModel.onQtyChange(line.product.id, qty)
+                qtyEntryFor = null
+            },
+            onDismiss = { qtyEntryFor = null },
+        )
     }
 
     Scaffold(
@@ -154,6 +172,7 @@ fun PurchaseScreen(
                             PurchaseLineRow(
                                 line = line,
                                 onQtyChange = { viewModel.onQtyChange(line.product.id, it) },
+                                onQtyClick = { qtyEntryFor = line.product.id },
                                 onCostChange = { viewModel.onCostChange(line.product.id, it) },
                                 onToggleCost = { viewModel.onUpdateCostToggled(line.product.id) },
                                 onRemove = { viewModel.onRemoveLine(line.product.id) },
@@ -209,6 +228,7 @@ fun PurchaseScreen(
 private fun PurchaseLineRow(
     line: PurchaseLine,
     onQtyChange: (Double) -> Unit,
+    onQtyClick: () -> Unit,
     onCostChange: (Money) -> Unit,
     onToggleCost: () -> Unit,
     onRemove: () -> Unit,
@@ -232,6 +252,7 @@ private fun PurchaseLineRow(
                 unitLabel = line.product.unit.shortLabel,
                 onDecrease = { onQtyChange(line.qty - 1) },
                 onIncrease = { onQtyChange(line.qty + 1) },
+                onQtyClick = onQtyClick,
             )
             IconButton(onClick = onRemove) {
                 Icon(Icons.Rounded.Close, contentDescription = strings.delete)

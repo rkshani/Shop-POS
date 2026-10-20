@@ -33,7 +33,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -52,6 +54,7 @@ import com.dukan.pos.core.scanner.isCameraScanningSupported
 import com.dukan.pos.domain.model.CartLine
 import com.dukan.pos.core.i18n.fmt
 import com.dukan.pos.domain.model.Product
+import com.dukan.pos.presentation.common.QuantityDialog
 import com.dukan.pos.presentation.common.localized
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -99,6 +102,24 @@ fun PosScreen(
         return
     }
 
+    // Loose items open typed entry straight away: nobody buys "1 kg" of everything.
+    var qtyEntryFor by remember { mutableStateOf<Product?>(null) }
+    qtyEntryFor?.let { product ->
+        val line = state.cart.findLine(product.id)
+        QuantityDialog(
+            title = product.name,
+            unit = product.unit,
+            unitPrice = line?.unitPrice ?: product.salePrice,
+            initialQty = line?.qty ?: 0.0,
+            allowAmount = true,
+            onConfirm = { qty ->
+                viewModel.onQtyEntered(product, qty)
+                qtyEntryFor = null
+            },
+            onDismiss = { qtyEntryFor = null },
+        )
+    }
+
     if (state.isCheckoutOpen) {
         CheckoutSheet(
             cart = state.cart,
@@ -143,6 +164,7 @@ fun PosScreen(
                 CartSection(
                     lines = state.cart.lines,
                     onQtyChange = viewModel::onQtyChange,
+                    onQtyClick = { line -> qtyEntryFor = line.product },
                     onRemove = viewModel::onRemoveLine,
                 )
                 HorizontalDivider()
@@ -164,7 +186,10 @@ fun PosScreen(
                         ProductRow(
                             product = product,
                             inCartQty = state.cart.findLine(product.id)?.qty ?: 0.0,
-                            onClick = { viewModel.onProductTapped(product) },
+                            onClick = {
+                                if (product.unit.allowsFraction) qtyEntryFor = product
+                                else viewModel.onProductTapped(product)
+                            },
                         )
                     }
                 }
@@ -210,6 +235,7 @@ private fun ProductRow(product: Product, inCartQty: Double, onClick: () -> Unit)
 private fun CartSection(
     lines: List<CartLine>,
     onQtyChange: (Long, Double) -> Unit,
+    onQtyClick: (CartLine) -> Unit,
     onRemove: (Long) -> Unit,
 ) {
     val spacing = LocalSpacing.current
@@ -232,6 +258,7 @@ private fun CartSection(
                         unitLabel = line.product.unit.shortLabel,
                         onDecrease = { onQtyChange(line.product.id, line.qty - 1) },
                         onIncrease = { onQtyChange(line.product.id, line.qty + 1) },
+                        onQtyClick = { onQtyClick(line) },
                     )
                     IconButton(onClick = { onRemove(line.product.id) }) {
                         Icon(Icons.Rounded.Close, contentDescription = strings.removeItem.fmt(line.product.name))
